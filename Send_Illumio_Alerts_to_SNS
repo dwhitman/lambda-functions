@@ -1,0 +1,53 @@
+from botocore.vendored import requests
+import datetime
+import boto3
+import time
+import os
+
+def lambda_handler(event, context): 
+    login = os.environ['login']
+    password = os.environ['password']
+    base_url = 'https://scp1.illum.io/api/v2'
+    blocked_url = '/orgs/8/blocked_traffic'
+    seconds_back = 900
+    now = datetime.datetime.utcnow()
+
+    #cloudwatch_logs = boto3.client('logs')
+    #cloudwatch_log_group = 'illumio-logs'
+    #cloudwatch_log_stream = 'illumio-stream'
+
+    blocked_requests = requests.get(base_url+blocked_url, auth=(login, password))
+    #print (blocked_requests.url)
+    #print (blocked_requests.status_code)
+    
+    if blocked_requests.status_code == int(200):
+        for each in blocked_requests.json():
+
+            last_occurred_time = datetime.datetime.strptime((each['last_occurred_at']), "%Y-%m-%dT%H:%M:%S.000+00:00")
+            difference = now - last_occurred_time
+            d = difference.days * 24 * 3600 + difference.seconds
+            print (now, last_occurred_time, d, seconds_back)
+            
+            if d < seconds_back:
+                #Get the workload from the blocked requests json so we can query workload
+                workload = each['destination']['workloads'][0]['href']
+                workload_request = requests.get(base_url+workload, auth=(login, password))
+
+                if workload_request.status_code == int(200):
+                    data_center = (workload_request.json()['data_center'])
+
+                    source =(each['source']['ip_address'])
+                    destination = (each['destination']['ip_address'])
+                    port = (each['port'])
+                    service = (each['service_name'])
+                    flow_status = (each['flow_status'])
+                    last_occurred = (each['last_occurred_at'])
+                    blocked_event_url = (each['href']).split('/', 4)
+                    cloudwatch_message = ("Last occurred time: " + str(last_occurred_time) + " AWS location: " + data_center + ", Source: " + source + ", Destination: " + destination + ", Service: " + service + ", Port: " + str(port) + ", Status: " + flow_status + ", Troubleshooting URL: https://scp1.illum.io/#/blockedtraffic/" + blocked_event_url[4] )
+                
+                    sns = boto3.client('sns')
+                    sns.publish ( TopicArn = 'arn:aws:sns:us-west-1:204873730252:dwhitman',
+                                  Subject = 'Illumio blocked traffic alert',
+                                  Message = cloudwatch_message
+                                 )
+                
