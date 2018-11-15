@@ -43,7 +43,7 @@ def lambda_handler(event, context):
                     flow_status = (each['flow_status'])
                     last_occurred = (each['last_occurred_at'])
                     blocked_event_url = (each['href']).split('/', 4)
-                    cloudwatch_message = ("Last occurred time: " + str(last_occurred_time) + " AWS location: " + data_center + ", Source: " + source + ", Destination: " + destination + ", Service: " + service + ", Port: " + str(port) + ", Status: " + flow_status + ", Troubleshooting URL: https://scp1.illum.io/#/blockedtraffic/" + blocked_event_url[4] )
+                    cloudwatch_message = ("Last occurred time: " + str(last_occurred_time) + "\nAWS location: " + data_center + "\nSource: " + source + "\nDestination: " + destination + "\nService: " + service + "\nPort: " + str(port) + "\nStatus: " + flow_status + "\nTroubleshooting URL: https://scp1.illum.io/#/blockedtraffic/" + blocked_event_url[4] )
                 
                     sns = boto3.client('sns')
                     sns.publish ( TopicArn = 'arn:aws:sns:us-west-1:204873730252:dwhitman',
